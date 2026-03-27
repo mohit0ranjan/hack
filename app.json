@@ -32,17 +32,14 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "CAMERA",
-        "android.permission.CAMERA",
-        "CAMERA",
         "android.permission.CAMERA"
       ]
     },
     "plugins": [
       [
-        "react-native-vision-camera",
+        "expo-camera",
         {
-          "cameraPermissionText": "EcoScan AI uses your camera to scan barcodes.",
-          "enableCodeScanner": true
+          "cameraPermission": "EcoScan AI uses your camera to scan product barcodes."
         }
       ]
     ],

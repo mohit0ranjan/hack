@@ -22,7 +22,7 @@ A React Native (Expo) app that scans product barcodes with Google ML Kit via Vis
 
 - Expo + React Native + TypeScript
 - react-native-vision-camera
-- vision-camera-code-scanner (ML Kit)
+- Built-in Vision Camera code scanner (ML Kit)
 - React Navigation Native Stack
 - Axios
 
@@ -64,9 +64,9 @@ The app sends:
 
 to:
 
-`POST http://YOUR_BACKEND_URL/api/scan`
+`POST ${EXPO_PUBLIC_API_URL}/api/scan`
 
-Update base URL in `src/services/api.ts` before production use.
+Set `EXPO_PUBLIC_API_URL` in your environment config.
 
 ## Notes
 

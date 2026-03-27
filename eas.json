@@ -12,6 +12,9 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://hack-woad.vercel.app"
+      },
       "android": {
         "buildType": "apk",
         "credentialsSource": "local"
@@ -22,7 +25,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://hack-woad.vercel.app"
+      }
     }
   },
   "submit": {

@@ -1,9 +1,11 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
   ScrollView,
   StatusBar,
@@ -38,6 +40,26 @@ export const ResultScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScanResponse | null>(null);
 
+  // Animated entry
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  // Shimmer animation for loading skeleton
+  useEffect(() => {
+    if (!loading) return;
+    const loop = Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [loading, shimmerAnim]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -57,6 +79,21 @@ export const ResultScreen = () => {
       } finally {
         if (isMounted) {
           setLoading(false);
+          // Trigger entry animation
+          Animated.parallel([
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 500,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 500,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }),
+          ]).start();
         }
       }
     };
@@ -66,7 +103,7 @@ export const ResultScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [barcode]);
+  }, [barcode, fadeAnim, slideAnim]);
 
   const product = useMemo(() => result ?? fallbackData, [result]);
 
@@ -74,14 +111,24 @@ export const ResultScreen = () => {
     return (
       <View style={styles.loaderScreen}>
         <LinearGradient
-          colors={['#F0FDF4', '#F8FAFC']}
+          colors={['#F0FDF4', '#FFFFFF']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.loaderCard}
         >
-          <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.shimmerIcon}>
+            <Text style={styles.shimmerEmoji}>🧪</Text>
+          </View>
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 16 }} />
           <Text style={styles.loaderTitle}>Analyzing Product</Text>
           <Text style={styles.loaderSubtitle}>Fetching carbon footprint insights...</Text>
+
+          {/* Skeleton placeholders */}
+          <View style={styles.skeletonGroup}>
+            <Animated.View style={[styles.skeletonLine, styles.skeletonWide, { opacity: shimmerAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 0.7, 0.3] }) }]} />
+            <Animated.View style={[styles.skeletonLine, styles.skeletonMedium, { opacity: shimmerAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.2, 0.6, 0.2] }) }]} />
+            <Animated.View style={[styles.skeletonLine, styles.skeletonNarrow, { opacity: shimmerAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 0.5, 0.3] }) }]} />
+          </View>
         </LinearGradient>
       </View>
     );
@@ -90,18 +137,29 @@ export const ResultScreen = () => {
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+      >
         <LinearGradient
-          colors={['#ECFDF5', '#F9FAFB']}
+          colors={['#ECFDF5', '#F0FDF4']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerCard}
         >
-          <Text style={styles.appTitle}>EcoScan AI</Text>
-          <Text style={styles.barcodeLabel}>Barcode: {barcode}</Text>
+          <Text style={styles.appTitle}>🌿 EcoScan AI</Text>
+          <View style={styles.barcodeChip}>
+            <Text style={styles.barcodeLabel}>Barcode: {barcode}</Text>
+          </View>
         </LinearGradient>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorEmoji}>⚠️</Text>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Image source={{ uri: product.image }} style={styles.productImage} resizeMode="cover" />
@@ -116,27 +174,38 @@ export const ResultScreen = () => {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Impact</Text>
+          <Text style={styles.sectionLabel}>🚗 Environmental Impact</Text>
           <Text style={styles.impactText}>{product.impact}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Alternatives</Text>
-          {product.alternatives.length === 0 ? (
-            <Text style={styles.muted}>No alternatives returned by API.</Text>
-          ) : (
-            product.alternatives.map((item, index) => (
+        {product.alternatives.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>🌱 Eco-Friendly Alternatives</Text>
+            {product.alternatives.map((item, index) => (
               <View key={`${item}-${index}`} style={styles.alternativeRow}>
-                <View style={styles.dot} />
+                <View style={styles.altBadge}>
+                  <Text style={styles.altBadgeText}>{index + 1}</Text>
+                </View>
                 <Text style={styles.alternativeText}>{item}</Text>
               </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+            ))}
+          </View>
+        )}
+
+        {product.alternatives.length === 0 && !error && (
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>🌱 Alternatives</Text>
+            <Text style={styles.muted}>No eco-friendly alternatives found for this product.</Text>
+          </View>
+        )}
+      </Animated.ScrollView>
 
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.replace('Scanner')}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => navigation.replace('Scanner')}
+          activeOpacity={0.85}
+        >
           <Text style={styles.primaryButtonText}>Scan Another Product</Text>
         </TouchableOpacity>
       </View>
@@ -151,55 +220,84 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 18,
-    paddingTop: 54,
-    paddingBottom: 130,
+    paddingTop: 56,
+    paddingBottom: 110,
     gap: 14,
   },
+
+  // Header
   headerCard: {
-    borderRadius: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
   appTitle: {
     color: '#065F46',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
   },
+  barcodeChip: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
   barcodeLabel: {
-    marginTop: 6,
     color: '#047857',
     fontSize: 13,
     fontWeight: '700',
   },
+
+  // Error
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorEmoji: {
+    fontSize: 18,
+  },
   errorText: {
-    color: colors.danger,
+    flex: 1,
+    color: '#991B1B',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 20,
   },
+
+  // Cards
   card: {
     backgroundColor: colors.surface,
     borderRadius: 20,
-    padding: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
+    padding: 18,
+    shadowColor: 'rgba(15, 23, 42, 0.06)',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 1,
-    shadowRadius: 18,
+    shadowRadius: 16,
     elevation: 2,
   },
   productImage: {
     width: '100%',
-    height: 190,
+    height: 200,
     borderRadius: 16,
     backgroundColor: '#E5E7EB',
   },
   productName: {
     marginTop: 14,
     color: colors.textPrimary,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
+    lineHeight: 30,
   },
   metricsRow: {
-    marginTop: 14,
+    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -213,16 +311,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   footprint: {
     marginTop: 8,
     color: '#166534',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
   },
   impactText: {
-    marginTop: 8,
+    marginTop: 10,
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
@@ -232,18 +330,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: colors.textSecondary,
     fontSize: 15,
+    lineHeight: 22,
   },
+
+  // Alternatives
   alternativeRow: {
-    marginTop: 10,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 99,
-    backgroundColor: colors.primary,
+  altBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  altBadgeText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '800',
   },
   alternativeText: {
     flex: 1,
@@ -251,6 +359,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+
+  // Bottom
   bottomActions: {
     position: 'absolute',
     left: 16,
@@ -259,16 +369,23 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.primary,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
+
+  // Loader
   loaderScreen: {
     flex: 1,
     alignItems: 'center',
@@ -278,10 +395,21 @@ const styles = StyleSheet.create({
   },
   loaderCard: {
     width: '100%',
-    borderRadius: 22,
-    paddingVertical: 36,
+    borderRadius: 24,
+    paddingVertical: 40,
     paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  shimmerIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shimmerEmoji: {
+    fontSize: 30,
   },
   loaderTitle: {
     marginTop: 14,
@@ -294,5 +422,24 @@ const styles = StyleSheet.create({
     color: '#047857',
     fontSize: 14,
     fontWeight: '600',
+  },
+  skeletonGroup: {
+    marginTop: 24,
+    width: '100%',
+    gap: 10,
+  },
+  skeletonLine: {
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#D1FAE5',
+  },
+  skeletonWide: {
+    width: '90%',
+  },
+  skeletonMedium: {
+    width: '65%',
+  },
+  skeletonNarrow: {
+    width: '40%',
   },
 });

@@ -9,7 +9,7 @@ const {
 
 const scanBarcodeController = async (req, res, next) => {
   try {
-    const barcode = String(req.body?.barcode || '').trim();
+    const barcode = String(req.body?.barcode || req.params?.barcode || '').trim();
 
     if (!barcode) {
       return res.status(400).json({
