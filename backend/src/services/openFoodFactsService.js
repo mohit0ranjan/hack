@@ -1,14 +1,15 @@
-const OPEN_FOOD_FACTS_URL = 'https://world.openfoodfacts.org/api/v0/product';
+const OPEN_FOOD_FACTS_URL = 'https://world.openfoodfacts.org/api/v2/product';
 
 const fetchProductByBarcode = async (barcode) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const response = await fetch(`${OPEN_FOOD_FACTS_URL}/${barcode}.json`, {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
+        'User-Agent': 'BehindTheTitle - ExpoApp/1.0 - Android/iOS'
       },
     });
 
@@ -36,18 +37,21 @@ const fetchProductByBarcode = async (barcode) => {
           .filter(Boolean)
       : [];
 
+    const bestName = product.product_name_en || product.product_name || product.generic_name_en || product.generic_name || product.brands || 'Unknown Product';
+    const bestImage = product.image_url || product.image_front_url || product.image_front_small_url || '';
+
     const category = [
       product.categories || '',
       categoryTags.join(', '),
       product.brands || '',
-      product.product_name || '',
+      bestName,
     ]
       .filter(Boolean)
       .join(' | ') || 'Unknown Category';
 
     return {
-      productName: product.product_name || 'Unknown Product',
-      image: product.image_url || '',
+      productName: bestName,
+      image: bestImage,
       categories: product.categories || '',
       category,
       sugar100g: sugar100g !== null ? Number(sugar100g) : null,
